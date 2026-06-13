@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>密码查询系统</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <div class="icon">🔐</div>
+                <h1>密码查询系统</h1>
+                <p>输入学号和手机号验证身份，获取共享密码</p>
+            </div>
+
+            <form id="lookupForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="studentId">
+                        <span class="label-icon">🎓</span> 学号
+                    </label>
+                    <input
+                        type="text"
+                        id="studentId"
+                        placeholder="请输入学号"
+                        required
+                        autocomplete="off"
+                        inputmode="numeric"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phoneNumber">
+                        <span class="label-icon">📱</span> 手机号
+                    </label>
+                    <input
+                        type="tel"
+                        id="phoneNumber"
+                        placeholder="请输入手机号"
+                        required
+                        autocomplete="off"
+                        inputmode="numeric"
+                        maxlength="11"
+                    >
+                </div>
+
+                <button type="submit" id="submitBtn" disabled>
+                    <span id="btnText">查 询</span>
+                    <span id="btnSpinner" class="spinner hidden"></span>
+                </button>
+            </form>
+
+            <!-- 加载提示 -->
+            <div id="loadingHint" class="hint">
+                ⏳ 正在加载数据，请稍候...
+            </div>
+
+            <!-- 结果展示 -->
+            <div id="result" class="result hidden"></div>
+        </div>
+
+        <footer class="footer">
+            <p>白名单加密验证 · 仅授权用户可获取</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
