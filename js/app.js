@@ -20,6 +20,8 @@
         keyLengthBits: 256,
         hashAlgorithm: 'SHA-256',
         passwordDisplayTimeout: 60, // 秒，超过后自动隐藏密码
+        rateLimitMax: 20,           // 时间窗口内最大尝试次数
+        rateLimitWindow: 60,        // 时间窗口（秒）
     };
 
     // ============ DOM 元素 ============
@@ -67,6 +69,69 @@
             binary += String.fromCharCode(bytes[i]);
         }
         return btoa(binary);
+    }
+
+    // ============ 速率限制 ============
+
+    /**
+     * 检查是否超过速率限制
+     * 使用 localStorage 记录请求时间戳，窗口内超过上限则拒绝
+     * @returns {{ allowed: boolean, remaining: number, resetIn: number }}
+     */
+    function checkRateLimit() {
+        const now = Date.now();
+        const windowMs = CONFIG.rateLimitWindow * 1000;
+        const cutoff = now - windowMs;
+
+        // 读取历史时间戳
+        let timestamps = [];
+        try {
+            const raw = localStorage.getItem('_rate_limit_timestamps');
+            if (raw) {
+                timestamps = JSON.parse(raw);
+                if (!Array.isArray(timestamps)) timestamps = [];
+            }
+        } catch (e) {
+            timestamps = [];
+        }
+
+        // 清除窗口外的时间戳
+        timestamps = timestamps.filter(t => t > cutoff);
+
+        // 持久化清理后的数据
+        try {
+            localStorage.setItem('_rate_limit_timestamps', JSON.stringify(timestamps));
+        } catch (e) { /* 存储满时忽略 */ }
+
+        const count = timestamps.length;
+        const remaining = Math.max(0, CONFIG.rateLimitMax - count);
+        const allowed = count < CONFIG.rateLimitMax;
+        const oldest = timestamps.length > 0 ? timestamps[0] : now;
+        const resetIn = Math.max(0, Math.ceil((oldest + windowMs - now) / 1000));
+
+        return { allowed, remaining, resetIn };
+    }
+
+    /**
+     * 记录一次请求尝试
+     */
+    function recordAttempt() {
+        let timestamps = [];
+        try {
+            const raw = localStorage.getItem('_rate_limit_timestamps');
+            if (raw) {
+                timestamps = JSON.parse(raw);
+                if (!Array.isArray(timestamps)) timestamps = [];
+            }
+        } catch (e) {
+            timestamps = [];
+        }
+
+        timestamps.push(Date.now());
+
+        try {
+            localStorage.setItem('_rate_limit_timestamps', JSON.stringify(timestamps));
+        } catch (e) { /* 存储满时忽略 */ }
     }
 
     // ============ 哈希操作 ============
@@ -428,6 +493,16 @@
 
         if (isLoading || !isDataLoaded) return;
 
+        // 速率限制检查
+        const rateLimit = checkRateLimit();
+        if (!rateLimit.allowed) {
+            showError(
+                `请求过于频繁，请 ${rateLimit.resetIn} 秒后再试。` +
+                `（每分钟最多 ${CONFIG.rateLimitMax} 次）`
+            );
+            return;
+        }
+
         const studentId = studentIdInput.value.trim();
         const phoneNumber = phoneNumberInput.value.trim();
 
@@ -452,6 +527,9 @@
             phoneNumberInput.focus();
             return;
         }
+
+        // 记录本次尝试
+        recordAttempt();
 
         // 清除之前的结果
         clearResult();
